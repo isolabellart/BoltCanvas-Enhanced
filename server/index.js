@@ -1530,6 +1530,7 @@ app.get("/api/admin/products", requireAdmin, (req, res) => {
       quantityAvailable: p.quantityAvailable,
       maxQuantity,
       available: p.available,
+      artworkStatus: p.artworkStatus,
       hidden: p.hidden,
       createdAt: p.createdAt,
       displayOrder: p.displayOrder,
