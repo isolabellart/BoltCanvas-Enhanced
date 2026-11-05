@@ -395,6 +395,7 @@ export default function Products() {
             ? t("NASCOSTO", "HIDDEN")
             : artworkStatusOverlayLabel;
           const showUnclassifiedBadge = Boolean(
+            !isHidden &&
             p.artworkStatus &&
             p.artworkStatus !== "for_sale" &&
             !artworkStatusOverlayLabel
