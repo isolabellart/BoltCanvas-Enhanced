@@ -291,6 +291,7 @@ if (!sGet.get("commissionCtaHref")) sSet.run("commissionCtaHref", "/about");
 // ── NEW: Nostr / Lightning address settings (editable in admin) ──
 if (!sGet.get("nostrNpub")) sSet.run("nostrNpub", "");
 if (!sGet.get("nostrNip05")) sSet.run("nostrNip05", "");
+if (!sGet.get("nostrAdditionalNip05Identities")) sSet.run("nostrAdditionalNip05Identities", "[]");
 if (!sGet.get("nostrRelays")) sSet.run("nostrRelays", JSON.stringify(["wss://relay.damus.io","wss://nos.lol"]));
 if (!sGet.get("lightningAddress")) sSet.run("lightningAddress", "");
 if (!sGet.get("nostrCommentsEnabled")) sSet.run("nostrCommentsEnabled", "true");
@@ -1938,6 +1939,10 @@ export const Settings = {
       // NEW:
       nostrNpub: map.nostrNpub || "",
       nostrNip05: map.nostrNip05 || "",
+      nostrAdditionalNip05Identities: (() => {
+        const value = safeParseJSON(map.nostrAdditionalNip05Identities, []);
+        return Array.isArray(value) ? value : [];
+      })(),
       nostrRelays: safeParseJSON(map.nostrRelays, ["wss://relay.damus.io","wss://nos.lol"]),
       lightningAddress: map.lightningAddress || "",
       // NEW: theme
@@ -2037,7 +2042,7 @@ export const Settings = {
     embedCode,
     nostrTestimonials,
     // NEW:
-    nostrNpub, nostrNip05, nostrRelays, lightningAddress,
+    nostrNpub, nostrNip05, nostrAdditionalNip05Identities, nostrRelays, lightningAddress,
     // NEW: theme
     themeChoice,
     themeTokens,
@@ -2105,6 +2110,14 @@ export const Settings = {
     // NEW:
     if (nostrNpub !== undefined) sSet.run("nostrNpub", nostrNpub || "");
     if (nostrNip05 !== undefined) sSet.run("nostrNip05", nostrNip05 || "");
+    if (nostrAdditionalNip05Identities !== undefined) {
+      let parsed = nostrAdditionalNip05Identities;
+      if (typeof parsed === "string") {
+        try { parsed = JSON.parse(parsed); } catch { parsed = []; }
+      }
+      const value = Array.isArray(parsed) ? JSON.stringify(parsed.slice(0, 25)) : "[]";
+      sSet.run("nostrAdditionalNip05Identities", value);
+    }
     if (nostrRelays !== undefined) {
       const val = Array.isArray(nostrRelays) ? JSON.stringify(nostrRelays) : String(nostrRelays || "");
       sSet.run("nostrRelays", val);
