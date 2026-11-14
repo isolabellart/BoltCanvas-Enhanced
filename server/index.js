@@ -3023,8 +3023,8 @@ app.post("/api/nostr/comment/notify", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// ✅ NEW: NIP-05 well-known endpoint
-// Serves /.well-known/nostr.json using settings (nostrNip05, nostrNpub, relays).
+// ✅ NIP-05 well-known endpoint
+// Serves the primary and additional NIP-05 identities configured in admin settings.
 // Sits before the Vite proxy/static so it works in DEV and PROD.
 // ---------------------------------------------------------------------
 app.get("/.well-known/nostr.json", async (req, res) => {

@@ -127,4 +127,23 @@ describe("NIP-05 multi-identity response", () => {
 
     expect(payload.names).toEqual({ beaunique: BEA });
   });
+  it("does not expose every alias when the requested name is invalid", async () => {
+    const resolvePubkey = makeResolver({
+      "npub-main": MAIN,
+      "npub-bea": BEA
+    });
+    const payload = await buildNip05Response({
+      settings: {
+        nostrNpub: "npub-main",
+        nostrNip05: "isolabellart",
+        nostrAdditionalNip05Identities: [{ name: "beaunique", npub: "npub-bea" }]
+      },
+      requestedName: "invalid username",
+      resolvePubkey,
+      relays: RELAYS
+    });
+
+    expect(payload).toEqual({ names: {} });
+  });
+
 });

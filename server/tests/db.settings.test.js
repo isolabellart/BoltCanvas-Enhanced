@@ -36,4 +36,26 @@ describe("db: settings", () => {
     Settings.setAll({ storeName: "Updated Store" });
     expect(Settings.getAll().nostrTestimonials).toBe(identifiers);
   });
+  it("persists additional NIP-05 identities without changing the primary identity", async () => {
+    const { Settings } = await freshDb();
+    const primary = {
+      nostrNpub: "npub-primary",
+      nostrNip05: "isolabellart@isolabellart.it.com"
+    };
+    const identities = [
+      { name: "beaunique", npub: "npub-bea" },
+      { name: "postilla", npub: "npub-postilla" }
+    ];
+
+    Settings.setAll(primary);
+    Settings.setAll({ nostrAdditionalNip05Identities: identities });
+
+    expect(Settings.getAll().nostrNpub).toBe(primary.nostrNpub);
+    expect(Settings.getAll().nostrNip05).toBe(primary.nostrNip05);
+    expect(Settings.getAll().nostrAdditionalNip05Identities).toEqual(identities);
+
+    Settings.setAll({ storeName: "Updated Store" });
+    expect(Settings.getAll().nostrAdditionalNip05Identities).toEqual(identities);
+  });
+
 });

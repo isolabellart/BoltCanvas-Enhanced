@@ -36,7 +36,9 @@ export async function buildNip05Response({
   relays = []
 } = {}) {
   const s = settings && typeof settings === "object" ? settings : {};
-  const requested = normalizeNip05Username(requestedName);
+  const requestedValue = String(requestedName ?? "").trim();
+  const hasRequestedName = requestedValue.length > 0;
+  const requested = normalizeNip05Username(requestedValue);
   const resolve = typeof resolvePubkey === "function" ? resolvePubkey : async () => "";
   const entries = [];
   const seenNames = new Set();
@@ -69,8 +71,8 @@ export async function buildNip05Response({
     await addIdentity(name, key);
   }
 
-  const selected = requested
-    ? entries.filter((entry) => entry.name === requested)
+  const selected = hasRequestedName
+    ? (requested ? entries.filter((entry) => entry.name === requested) : [])
     : entries;
 
   const names = Object.fromEntries(selected.map(({ name, pubkey }) => [name, pubkey]));
