@@ -253,13 +253,21 @@ export default function Settings() {
   };
 
   const addAdditionalNip05Identity = () => {
-    setS((prev) => ({
-      ...prev,
-      nostrAdditionalNip05Identities: [
-        ...(Array.isArray(prev.nostrAdditionalNip05Identities) ? prev.nostrAdditionalNip05Identities : []),
-        { name: "", npub: "" }
-      ]
-    }));
+    setS((prev) => {
+      const current = Array.isArray(prev.nostrAdditionalNip05Identities)
+        ? prev.nostrAdditionalNip05Identities
+        : [];
+
+      if (current.length >= 25) return prev;
+
+      return {
+        ...prev,
+        nostrAdditionalNip05Identities: [
+          ...current,
+          { name: "", npub: "" }
+        ]
+      };
+    });
   };
   const updateAdditionalNip05Identity = (idx, patch) => {
     setS((prev) => {
@@ -1268,9 +1276,13 @@ export default function Settings() {
             </div>
             <p className="text-xs text-white/60 leading-relaxed">
               {t(
-                "Inserisci solo il nome prima della @ e il relativo npub. Puoi aggiungere o rimuovere identità senza modificare quella principale.",
-                "Enter the username before @ and its npub. You can add or remove identities without changing the primary one."
+                "Inserisci solo il nome prima della @ e il relativo npub. Puoi aggiungere o rimuovere identità senza modificare quella principale. Puoi aggiungere fino a 25 identità NIP-05 aggiuntive, oltre a quella principale.",
+                "Enter the username before @ and its npub. You can add or remove identities without changing the primary one. You can add up to 25 additional NIP-05 identities, in addition to the primary identity."
               )}
+            </p>
+            <p className="text-xs text-white/60">
+              {t("Identità aggiuntive: ", "Additional identities: ")}
+              {additionalNip05Identities.length} / 25
             </p>
             {additionalNip05Identities.map((identity, idx) => (
               <div key={`additional-nip05-${idx}`} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]">
@@ -1300,7 +1312,8 @@ export default function Settings() {
             <div>
               <button
                 type="button"
-                className="rounded-xl px-3 py-2 bg-white/10 hover:bg-white/15 text-sm"
+                disabled={additionalNip05Identities.length >= 25}
+                className="rounded-xl px-3 py-2 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
                 onClick={addAdditionalNip05Identity}
               >
                 + {t("Aggiungi identità", "Add identity")}

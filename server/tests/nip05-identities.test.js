@@ -11,7 +11,7 @@ function makeResolver(mapping) {
 }
 
 describe("NIP-05 multi-identity response", () => {
-  it("returns the primary identity and all configured additional identities", async () => {
+  it("returns only the primary identity when no name is requested", async () => {
     const resolvePubkey = makeResolver({
       "npub-main": MAIN,
       "npub-bea": BEA,
@@ -31,17 +31,9 @@ describe("NIP-05 multi-identity response", () => {
       relays: RELAYS
     });
 
-    expect(payload.names).toEqual({
-      isolabellart: MAIN,
-      beaunique: BEA,
-      postilla: POSTILLA
-    });
-    expect(payload.relays).toEqual({
-      [MAIN]: RELAYS,
-      [BEA]: RELAYS,
-      [POSTILLA]: RELAYS
-    });
-    expect(resolvePubkey).toHaveBeenCalledTimes(3);
+    expect(payload.names).toEqual({ isolabellart: MAIN });
+    expect(payload.relays).toEqual({ [MAIN]: RELAYS });
+    expect(resolvePubkey).toHaveBeenCalledTimes(1);
   });
 
   it("returns only the requested identity for a NIP-05 lookup", async () => {
@@ -122,6 +114,7 @@ describe("NIP-05 multi-identity response", () => {
       settings: {
         nostrAdditionalNip05Identities: JSON.stringify([{ name: "beaunique", npub: "npub-bea" }])
       },
+      requestedName: "beaunique",
       resolvePubkey
     });
 
