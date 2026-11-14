@@ -17,6 +17,7 @@ import { createAdminLoginLimiter } from "./admin-login-limiter.js";
 import { Products, Orders, Settings, ProductImages, ProductNostrPosts, NostrCarts, DEFAULT_TEASER_HASHTAGS } from "./db.js";
 import { isEurope } from "./countries.js";
 import { makeId, now } from "./utils.js";
+import { buildNip05Response } from "./nip05-identities.js";
 
 // ⬇️ Provider-agnostic payment API (Blink or LND)
 import {
@@ -1425,7 +1426,7 @@ app.put("/api/admin/settings", requireAdmin, (req, res) => {
     embedCode,
     nostrTestimonials,
     // NEW Nostr/LN
-    nostrNpub, nostrNip05, nostrRelays, lightningAddress, nostrDefaultHashtags, nostrCommentsEnabled,
+    nostrNpub, nostrNip05, nostrAdditionalNip05Identities, nostrRelays, lightningAddress, nostrDefaultHashtags, nostrCommentsEnabled,
     nostrBlockedPubkeys, nostrBlockedHashtags,
     // NEW Theme
     themeChoice,
@@ -1451,7 +1452,7 @@ app.put("/api/admin/settings", requireAdmin, (req, res) => {
       // NEW: Embedded Code
       embedCode,
       nostrTestimonials,
-      nostrNpub, nostrNip05, nostrRelays, lightningAddress, nostrDefaultHashtags, nostrCommentsEnabled,
+      nostrNpub, nostrNip05, nostrAdditionalNip05Identities, nostrRelays, lightningAddress, nostrDefaultHashtags, nostrCommentsEnabled,
       nostrBlockedPubkeys, nostrBlockedHashtags,
       themeChoice, themeTokens,
       smtpEnabled, smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass,
@@ -3028,44 +3029,28 @@ app.post("/api/nostr/comment/notify", async (req, res) => {
 // ---------------------------------------------------------------------
 app.get("/.well-known/nostr.json", async (req, res) => {
   try {
-    const s = Settings.getAll();
-
-    // Determine the username from settings (before any ?name= query)
-    const configuredName = String(s.nostrNip05 || "")
-      .split("@")[0]
-      .trim()
-      .toLowerCase();
-    const requestedName = String(req.query.name || "")
-      .trim()
-      .toLowerCase();
-    const name = configuredName || requestedName;
-
-    // Resolve pubkey to raw hex (accepts hex or npub in settings)
-    let hex = "";
-    const ident = String(s.nostrNpub || "").trim();
-    if (ident) {
-      try { hex = await resolveToPubkey(ident); } catch {}
-    }
-
-    // If not configured, return an empty mapping (valid JSON)
-    if (!hex || !name) {
-      res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Cache-Control", "public, max-age=120");
-      return res.status(200).json({ names: {} });
-    }
-
-    const names = { [name]: hex };
-    const relaysArr = nostrRelays();
-    const relays = relaysArr?.length ? { [hex]: relaysArr } : undefined;
+    const settings = Settings.getAll();
+    const payload = await buildNip05Response({
+      settings,
+      requestedName: req.query.name,
+      resolvePubkey: resolveToPubkey,
+      relays: nostrRelays()
+    });
 
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-
-    const payload = relays ? { names, relays } : { names };
-    return res.json(payload);
+    const hasMatches = Object.keys(payload.names || {}).length > 0;
+    res.setHeader(
+      "Cache-Control",
+      hasMatches
+        ? "public, max-age=300, stale-while-revalidate=600"
+        : "public, max-age=120"
+    );
+    return res.status(200).json(payload);
   } catch {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=120");
     return res.status(200).json({ names: {} });
   }
 });
