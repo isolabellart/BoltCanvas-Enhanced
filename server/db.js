@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { nip19 } from "nostr-tools";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
@@ -2057,6 +2058,77 @@ export const Settings = {
     // ✨ Signature (admin)
     smtpSignature
   }) {
+    // Validate additional NIP-05 identities before writing ANY setting.
+    let normalizedAdditionalNip05Identities;
+    if (nostrAdditionalNip05Identities !== undefined) {
+      const invalid = (message) => {
+        const error = new Error(message);
+        error.code = "INVALID_NIP05_IDENTITIES";
+        return error;
+      };
+
+      let parsed = nostrAdditionalNip05Identities;
+      if (typeof parsed === "string") {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          throw invalid("Additional NIP-05 identities must contain valid JSON.");
+        }
+      }
+
+      if (!Array.isArray(parsed)) {
+        throw invalid("Additional NIP-05 identities must be an array.");
+      }
+      if (parsed.length > 25) {
+        throw invalid("A maximum of 25 additional NIP-05 identities is allowed.");
+      }
+
+      const currentSettings = this.getAll();
+      const primaryValue = nostrNip05 !== undefined
+        ? nostrNip05
+        : currentSettings.nostrNip05;
+      const primaryName = String(primaryValue || "")
+        .trim().split("@")[0].trim().toLowerCase();
+
+      const seenNames = new Set(primaryName ? [primaryName] : []);
+      normalizedAdditionalNip05Identities = parsed.map((identity, index) => {
+        if (!identity || typeof identity !== "object" || Array.isArray(identity)) {
+          throw invalid(`Additional NIP-05 identity ${index + 1} must be an object.`);
+        }
+
+        const name = String(identity.name ?? identity.username ?? identity.nip05 ?? "")
+          .trim().split("@")[0].trim().toLowerCase();
+        const key = String(identity.npub ?? identity.pubkey ?? identity.publicKey ?? "").trim();
+
+        if (!/^[a-z0-9._-]{1,64}$/.test(name)) {
+          throw invalid(`Additional NIP-05 identity ${index + 1} has an invalid username.`);
+        }
+        if (seenNames.has(name)) {
+          throw invalid(`Duplicate NIP-05 username: ${name}.`);
+        }
+        if (!key) {
+          throw invalid(`Additional NIP-05 identity ${index + 1} has no public key.`);
+        }
+
+        let validKey = /^[0-9a-f]{64}$/i.test(key);
+        if (!validKey && /^npub1/i.test(key)) {
+          try {
+            const decoded = nip19.decode(key);
+            validKey = decoded.type === "npub" &&
+              /^[0-9a-f]{64}$/i.test(String(decoded.data));
+          } catch {
+            validKey = false;
+          }
+        }
+        if (!validKey) {
+          throw invalid(`Additional NIP-05 identity ${index + 1} must contain a valid npub or 64-character hexadecimal public key.`);
+        }
+
+        seenNames.add(name);
+        return { name, npub: key };
+      });
+    }
+
     if (storeName !== undefined) sSet.run("storeName", storeName || "");
     if (contactNote !== undefined) sSet.run("contactNote", contactNote || "");
     if (logo !== undefined) sSet.run("logo", logo || "");
@@ -2111,12 +2183,10 @@ export const Settings = {
     if (nostrNpub !== undefined) sSet.run("nostrNpub", nostrNpub || "");
     if (nostrNip05 !== undefined) sSet.run("nostrNip05", nostrNip05 || "");
     if (nostrAdditionalNip05Identities !== undefined) {
-      let parsed = nostrAdditionalNip05Identities;
-      if (typeof parsed === "string") {
-        try { parsed = JSON.parse(parsed); } catch { parsed = []; }
-      }
-      const value = Array.isArray(parsed) ? JSON.stringify(parsed.slice(0, 25)) : "[]";
-      sSet.run("nostrAdditionalNip05Identities", value);
+      sSet.run(
+        "nostrAdditionalNip05Identities",
+        JSON.stringify(normalizedAdditionalNip05Identities)
+      );
     }
     if (nostrRelays !== undefined) {
       const val = Array.isArray(nostrRelays) ? JSON.stringify(nostrRelays) : String(nostrRelays || "");

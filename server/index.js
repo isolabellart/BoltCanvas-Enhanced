@@ -1440,30 +1440,37 @@ app.put("/api/admin/settings", requireAdmin, (req, res) => {
     notifyEmailSubject_PAID, notifyEmailSubject_PREPARATION, notifyEmailSubject_SHIPPED,
     notifyEmailBody_PAID, notifyEmailBody_PREPARATION, notifyEmailBody_SHIPPED
   } = req.body || {};
-  res.json(
-    Settings.setAll({
-      storeName, contactNote, logo, logoDark, logoLight, favicon, productsHeading, featuredProductId, heroLine, radiusScale,
-      displayFont, bodyFont,
-      aboutTitle, aboutBody, aboutImage,
-      heroCtaLabel, heroCtaHref,
-      shippingTitle, shippingBullet1, shippingBullet2, shippingBullet3,
-      shippingZones,
-      commissionTitle, commissionBody, commissionCtaLabel, commissionCtaHref,
-      // NEW: Embedded Code
-      embedCode,
-      nostrTestimonials,
-      nostrNpub, nostrNip05, nostrAdditionalNip05Identities, nostrRelays, lightningAddress, nostrDefaultHashtags, nostrCommentsEnabled,
-      nostrBlockedPubkeys, nostrBlockedHashtags,
-      themeChoice, themeTokens,
-      smtpEnabled, smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass,
-      smtpFromName, smtpFromAddress, smtpEnvelopeFrom, smtpReplyTo, smtpSignature, smtpSaveToSent,
-      imapHost, imapPort, imapSecure, imapUser, imapPass, imapMailbox,
-      // pass templates through
-      notifyDmTemplate_PAID, notifyDmTemplate_PREPARATION, notifyDmTemplate_SHIPPED,
-      notifyEmailSubject_PAID, notifyEmailSubject_PREPARATION, notifyEmailSubject_SHIPPED,
-      notifyEmailBody_PAID, notifyEmailBody_PREPARATION, notifyEmailBody_SHIPPED
-    })
-  );
+  try {
+    return res.json(
+      Settings.setAll({
+        storeName, contactNote, logo, logoDark, logoLight, favicon, productsHeading, featuredProductId, heroLine, radiusScale,
+        displayFont, bodyFont,
+        aboutTitle, aboutBody, aboutImage,
+        heroCtaLabel, heroCtaHref,
+        shippingTitle, shippingBullet1, shippingBullet2, shippingBullet3,
+        shippingZones,
+        commissionTitle, commissionBody, commissionCtaLabel, commissionCtaHref,
+        // NEW: Embedded Code
+        embedCode,
+        nostrTestimonials,
+        nostrNpub, nostrNip05, nostrAdditionalNip05Identities, nostrRelays, lightningAddress, nostrDefaultHashtags, nostrCommentsEnabled,
+        nostrBlockedPubkeys, nostrBlockedHashtags,
+        themeChoice, themeTokens,
+        smtpEnabled, smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass,
+        smtpFromName, smtpFromAddress, smtpEnvelopeFrom, smtpReplyTo, smtpSignature, smtpSaveToSent,
+        imapHost, imapPort, imapSecure, imapUser, imapPass, imapMailbox,
+        // pass templates through
+        notifyDmTemplate_PAID, notifyDmTemplate_PREPARATION, notifyDmTemplate_SHIPPED,
+        notifyEmailSubject_PAID, notifyEmailSubject_PREPARATION, notifyEmailSubject_SHIPPED,
+        notifyEmailBody_PAID, notifyEmailBody_PREPARATION, notifyEmailBody_SHIPPED
+      })
+    );
+  } catch (error) {
+    if (error?.code === "INVALID_NIP05_IDENTITIES") {
+      return res.status(400).json({ ok: false, error: error.message });
+    }
+    throw error;
+  }
 });
 
 // NEW: Admin products list (full objects with images[])
