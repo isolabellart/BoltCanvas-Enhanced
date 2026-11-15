@@ -2058,16 +2058,22 @@ export const Settings = {
     // ✨ Signature (admin)
     smtpSignature
   }) {
-    // Validate additional NIP-05 identities before writing ANY setting.
+    // Validate the resulting primary identity and aliases before writing ANY setting.
+    const currentSettings = this.getAll();
+    const shouldValidateNip05Identities =
+      nostrNpub !== undefined || nostrNip05 !== undefined ||
+      nostrAdditionalNip05Identities !== undefined;
     let normalizedAdditionalNip05Identities;
-    if (nostrAdditionalNip05Identities !== undefined) {
+    if (shouldValidateNip05Identities) {
       const invalid = (message) => {
         const error = new Error(message);
         error.code = "INVALID_NIP05_IDENTITIES";
         return error;
       };
 
-      let parsed = nostrAdditionalNip05Identities;
+      let parsed = nostrAdditionalNip05Identities !== undefined
+        ? nostrAdditionalNip05Identities
+        : currentSettings.nostrAdditionalNip05Identities;
       if (typeof parsed === "string") {
         try {
           parsed = JSON.parse(parsed);
@@ -2083,7 +2089,6 @@ export const Settings = {
         throw invalid("A maximum of 25 additional NIP-05 identities is allowed.");
       }
 
-      const currentSettings = this.getAll();
       const primaryValue = nostrNip05 !== undefined
         ? nostrNip05
         : currentSettings.nostrNip05;
@@ -2091,6 +2096,25 @@ export const Settings = {
         .trim().split("@")[0].trim().toLowerCase();
 
       const seenNames = new Set(primaryName ? [primaryName] : []);
+      const normalizePubkey = (value) => {
+        const candidate = String(value || "").trim();
+        if (/^[0-9a-f]{64}$/i.test(candidate)) return candidate.toLowerCase();
+        if (/^npub1/i.test(candidate)) {
+          try {
+            const decoded = nip19.decode(candidate);
+            if (decoded.type === "npub" && /^[0-9a-f]{64}$/i.test(String(decoded.data))) {
+              return String(decoded.data).toLowerCase();
+            }
+          } catch {
+            // Ignore invalid legacy primary keys; aliases are validated below.
+          }
+        }
+        return "";
+      };
+      const primaryPubkey = normalizePubkey(
+        nostrNpub !== undefined ? nostrNpub : currentSettings.nostrNpub
+      );
+      const seenPubkeys = new Set(primaryPubkey ? [primaryPubkey] : []);
       normalizedAdditionalNip05Identities = parsed.map((identity, index) => {
         if (!identity || typeof identity !== "object" || Array.isArray(identity)) {
           throw invalid(`Additional NIP-05 identity ${index + 1} must be an object.`);
@@ -2123,7 +2147,14 @@ export const Settings = {
         if (!validKey) {
           throw invalid(`Additional NIP-05 identity ${index + 1} must contain a valid npub or 64-character hexadecimal public key.`);
         }
-
+        const normalizedKey = normalizePubkey(key);
+        if (!normalizedKey) {
+          throw invalid(`Additional NIP-05 identity ${index + 1} has an invalid public key.`);
+        }
+        if (seenPubkeys.has(normalizedKey)) {
+          throw invalid(`Duplicate NIP-05 public key in identity: ${name}.`);
+        }
+        seenPubkeys.add(normalizedKey);
         seenNames.add(name);
         return { name, npub: key };
       });

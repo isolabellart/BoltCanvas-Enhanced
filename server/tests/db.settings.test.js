@@ -116,4 +116,80 @@ describe("db: settings", () => {
     ]);
   });
 
+
+  it("rejects the same public key assigned to two aliases", async () => {
+    const { Settings } = await freshDb();
+    const key = "a".repeat(64);
+
+    expect(() => Settings.setAll({
+      nostrAdditionalNip05Identities: [
+        { name: "first", npub: key },
+        { name: "second", npub: key }
+      ]
+    })).toThrowError(/Duplicate NIP-05 public key/i);
+  });
+
+  it("rejects equivalent npub and hex keys assigned to different aliases", async () => {
+    const { Settings } = await freshDb();
+    const validNpub = "npub1ty8ptvutuptqxzws9nua6gpukttpmpe89hts3teatgg9ymefl6uspn6fgn";
+    const validHex = "590e15b38be0560309d02cf9dd203cb2d61d87272dd708af3d5a10526f29feb9";
+
+    expect(() => Settings.setAll({
+      nostrAdditionalNip05Identities: [
+        { name: "first", npub: validNpub },
+        { name: "second", npub: validHex }
+      ]
+    })).toThrowError(/Duplicate NIP-05 public key/i);
+  });
+
+  it("rejects an alias using the primary public key", async () => {
+    const { Settings } = await freshDb();
+    const validNpub = "npub1ty8ptvutuptqxzws9nua6gpukttpmpe89hts3teatgg9ymefl6uspn6fgn";
+    const validHex = "590e15b38be0560309d02cf9dd203cb2d61d87272dd708af3d5a10526f29feb9";
+
+    Settings.setAll({ nostrNpub: validNpub, nostrNip05: "owner" });
+
+    expect(() => Settings.setAll({
+      nostrAdditionalNip05Identities: [
+        { name: "beaunique", npub: validHex }
+      ]
+    })).toThrowError(/Duplicate NIP-05 public key/i);
+  });
+
+  it("validates aliases when only the primary public key changes", async () => {
+    const { Settings } = await freshDb();
+    const primaryKey = "a".repeat(64);
+    const aliasKey = "b".repeat(64);
+
+    Settings.setAll({
+      storeName: "Before",
+      nostrNpub: primaryKey,
+      nostrAdditionalNip05Identities: [
+        { name: "beaunique", npub: aliasKey }
+      ]
+    });
+
+    expect(() => Settings.setAll({
+      storeName: "Must Not Be Saved",
+      nostrNpub: aliasKey
+    })).toThrowError(/Duplicate NIP-05 public key/i);
+
+    expect(Settings.getAll().storeName).toBe("Before");
+    expect(Settings.getAll().nostrNpub).toBe(primaryKey);
+  });
+
+  it("allows an empty primary identity with distinct additional identities", async () => {
+    const { Settings } = await freshDb();
+
+    Settings.setAll({
+      nostrNpub: "",
+      nostrAdditionalNip05Identities: [
+        { name: "first", npub: "a".repeat(64) },
+        { name: "second", npub: "b".repeat(64) }
+      ]
+    });
+
+    expect(Settings.getAll().nostrAdditionalNip05Identities).toHaveLength(2);
+  });
+
 });
