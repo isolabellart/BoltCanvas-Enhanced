@@ -1289,7 +1289,7 @@ export default function Settings() {
                 <input
                   className="min-w-0 px-3 py-3 rounded-xl bg-slate-900 ring-1 ring-white/10"
                   aria-label={t("Nome NIP-05 aggiuntivo", "Additional NIP-05 username")}
-                  placeholder="beaunique"
+                  placeholder="nickname"
                   value={identity?.name || ""}
                   onChange={(e) => updateAdditionalNip05Identity(idx, { name: e.target.value })}
                 />
